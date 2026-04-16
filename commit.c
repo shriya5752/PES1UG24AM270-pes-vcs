@@ -25,6 +25,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 
+
 // Forward declarations (implemented in object.c)
 int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out);
 int object_read(const ObjectID *id, ObjectType *type_out, void **data_out, size_t *len_out);
@@ -193,9 +194,115 @@ int head_update(const ObjectID *new_commit) {
 //   - head_update       : moves the branch pointer to your new commit
 //
 // Returns 0 on success, -1 on error.
+// ─── TODO: Implement these ───────────────────────────────────────────────────
+
+// Create a new commit from the current staging area.
+// ─── TODO: Implement these ───────────────────────────────────────────────────
+
+// Create a new commit from the current staging area.
 int commit_create(const char *message, ObjectID *commit_id_out) {
-    // TODO: Implement commit creation
-    // (See Lab Appendix for logical steps)
-    (void)message; (void)commit_id_out;
-    return -1;
+    printf("DEBUG: Starting commit_create\n");
+    
+    // 1. Build a tree from the index
+    Index index;
+    if (index_load(&index) != 0) {
+        fprintf(stderr, "error: failed to load index\n");
+        return -1;
+    }
+    
+    printf("DEBUG: Loaded index with %d entries\n", index.count);
+    
+    if (index.count == 0) {
+        fprintf(stderr, "error: nothing staged for commit\n");
+        return -1;
+    }
+    
+    ObjectID tree_hash;
+    printf("DEBUG: Calling tree_from_index...\n");
+    if (tree_from_index(&index, &tree_hash) != 0) {
+        fprintf(stderr, "error: failed to build tree from index\n");
+        return -1;
+    }
+    
+    char tree_hex[HASH_HEX_SIZE + 1];
+    hash_to_hex(&tree_hash, tree_hex);
+    printf("DEBUG: Tree hash: %s\n", tree_hex);
+    
+    // 2. Read current HEAD as parent (may not exist for first commit)
+    Commit commit = {0};
+    memset(&commit, 0, sizeof(Commit));
+    commit.tree = tree_hash;
+    
+    ObjectID parent_hash;
+    if (head_read(&parent_hash) == 0) {
+        commit.has_parent = 1;
+        commit.parent = parent_hash;
+        char parent_hex[HASH_HEX_SIZE + 1];
+        hash_to_hex(&parent_hash, parent_hex);
+        printf("DEBUG: Parent hash: %s\n", parent_hex);
+    } else {
+        commit.has_parent = 0;
+        printf("DEBUG: No parent (first commit)\n");
+    }
+    
+    // 3. Get author and timestamp
+    const char *author = pes_author();
+    if (!author || strlen(author) == 0) {
+        author = "Unknown <unknown@example.com>";
+    }
+    strncpy(commit.author, author, sizeof(commit.author) - 1);
+    commit.author[sizeof(commit.author) - 1] = '\0';
+    printf("DEBUG: Author: %s\n", commit.author);
+    
+    commit.timestamp = (uint64_t)time(NULL);
+    printf("DEBUG: Timestamp: %llu\n", (unsigned long long)commit.timestamp);
+    
+    // 4. Copy commit message
+    strncpy(commit.message, message, sizeof(commit.message) - 1);
+    commit.message[sizeof(commit.message) - 1] = '\0';
+    printf("DEBUG: Message: %s\n", commit.message);
+    
+    // 5. Serialize the commit
+    void *serialized_data = NULL;
+    size_t data_len = 0;
+    printf("DEBUG: Calling commit_serialize...\n");
+    if (commit_serialize(&commit, &serialized_data, &data_len) != 0) {
+        fprintf(stderr, "error: failed to serialize commit\n");
+        return -1;
+    }
+    
+    printf("DEBUG: Serialized data length: %zu bytes\n", data_len);
+    printf("DEBUG: Serialized content:\n%s\n", (char*)serialized_data);
+    
+    // 6. Write commit object to object store
+    ObjectID commit_hash;
+    printf("DEBUG: Calling object_write for commit...\n");
+    if (object_write(OBJ_COMMIT, serialized_data, data_len, &commit_hash) != 0) {
+        free(serialized_data);
+        fprintf(stderr, "error: failed to write commit object\n");
+        return -1;
+    }
+    
+    free(serialized_data);
+    
+    char commit_hex[HASH_HEX_SIZE + 1];
+    hash_to_hex(&commit_hash, commit_hex);
+    printf("DEBUG: Commit hash: %s\n", commit_hex);
+    
+    // 7. Update HEAD to point to new commit
+    printf("DEBUG: Calling head_update...\n");
+    if (head_update(&commit_hash) != 0) {
+        fprintf(stderr, "error: failed to update HEAD\n");
+        return -1;
+    }
+    
+    // 8. Output the commit hash if requested
+    if (commit_id_out) {
+        *commit_id_out = commit_hash;
+    }
+    
+    // Print success message
+    printf("[main %s] %s\n", commit_hex, message);
+    
+    return 0;
 }
