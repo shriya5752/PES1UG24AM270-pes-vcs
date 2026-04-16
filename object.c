@@ -91,7 +91,7 @@ int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out
     }
 
         // 8. Create temp file path
-    char temp_path[512];
+    char temp_path[520];
     snprintf(temp_path, sizeof(temp_path), "%s.tmp", path);
 
     // 9. Write to temp file
@@ -141,7 +141,11 @@ int object_read(const ObjectID *id, ObjectType *type_out, void **data_out, size_
         return -1;
     }
 
-    fread(buffer, 1, size, fp);
+    if (fread(buffer, 1, size, fp) != size) {
+    free(buffer);
+    fclose(fp);
+    return -1;
+}
     fclose(fp);
 
     // Verify hash

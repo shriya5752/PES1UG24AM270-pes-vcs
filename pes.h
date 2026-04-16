@@ -51,11 +51,9 @@ int hex_to_hash(const char *hex, ObjectID *id_out);
 // To set your name:
 //   export PES_AUTHOR="Your Name <PESXUG24CS042>"
 
-#define DEFAULT_AUTHOR "PES User <pes@localhost>"
-
-static inline const char* pes_author(void) {
-    const char *env = getenv("PES_AUTHOR");
-    return (env && env[0]) ? env : DEFAULT_AUTHOR;
-}
+const char* pes_author(void);
 
 #endif // PES_H
+// Object store functions
+int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out);
+int object_read(const ObjectID *id, ObjectType *type_out, void **data_out, size_t *len_out);

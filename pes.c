@@ -34,6 +34,15 @@ void cmd_init(void) {
     printf("Initialized empty PES repository in %s/\n", PES_DIR);
 }
 
+// Add this to pes.c
+const char* pes_author(void) {
+    const char *env = getenv("PES_AUTHOR");
+    if (env && env[0]) {
+        return env;
+    }
+    return "Shriya <PES1UG24AM270>";
+}
+
 // Usage: pes add <file>...
 void cmd_add(int argc, char *argv[]) {
     if (argc < 3) {
@@ -41,7 +50,7 @@ void cmd_add(int argc, char *argv[]) {
         return;
     }
 
-    Index index;
+    static Index index;
     if (index_load(&index) != 0) {
         fprintf(stderr, "error: failed to load index\n");
         return;
@@ -56,7 +65,7 @@ void cmd_add(int argc, char *argv[]) {
 
 // Usage: pes status
 void cmd_status(void) {
-    Index index;
+    static Index index;
     if (index_load(&index) != 0) {
         fprintf(stderr, "error: failed to load index\n");
         return;

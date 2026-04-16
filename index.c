@@ -24,6 +24,17 @@
 #include <unistd.h>
 #include <dirent.h>
 
+// Forward declaration for object_write (defined in object.c)
+int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out);
+
+// Helper: return Git-style file mode
+static uint32_t get_file_mode(const char *path) {
+    struct stat st;
+    if (lstat(path, &st) != 0) return 0100644;
+    if (st.st_mode & S_IXUSR)
+        return 0100755;
+    return 0100644;
+}
 // ─── PROVIDED ────────────────────────────────────────────────────────────────
 
 // Find an index entry by path (linear scan).
@@ -45,7 +56,7 @@ int index_remove(Index *index, const char *path) {
                 memmove(&index->entries[i], &index->entries[i + 1],
                         remaining * sizeof(IndexEntry));
             index->count--;
-            return index_save(index);
+    return index_save(index);
         }
     }
     fprintf(stderr, "error: '%s' is not in the index\n", path);
@@ -143,16 +154,16 @@ int index_load(Index *index) {
     char hex[65];
     while (index->count < MAX_INDEX_ENTRIES) {
         IndexEntry *e = &index->entries[index->count];
-        int ret = fscanf(f, "%o %64s %ld %zu %255s",
-                         &e->mode,
-                         hex,
-                         &e->mtime_sec,
-                         &e->size,
-                         e->path);
+        int ret = fscanf(f, "%o %64s %llu %u %255s",
+                 &e->mode,
+                 hex,
+                 (unsigned long long *)&e->mtime_sec,
+                 &e->size,
+                 e->path);
         if (ret == EOF) break;
         if (ret != 5) { fclose(f); return -1; }
 
-        if (hex_to_hash(hex, &e->id) != 0) { fclose(f); return -1; }
+        if (hex_to_hash(hex, &e->hash) != 0) { fclose(f); return -1; }
         index->count++;
     }
 
@@ -186,9 +197,9 @@ int index_save(const Index *index) {
     char hex[65];
     for (int i = 0; i < sorted.count; i++) {
         const IndexEntry *e = &sorted.entries[i];
-        hash_to_hex(&e->id, hex);
-        fprintf(f, "%o %s %ld %zu %s\n",
-                e->mode, hex, e->mtime_sec, e->size, e->path);
+        hash_to_hex(&e->hash, hex);
+        fprintf(f, "%o %s %llu %u %s\n",
+        e->mode, hex, (unsigned long long)e->mtime_sec, e->size, e->path);
     }
 
     fflush(f);
@@ -219,7 +230,11 @@ int index_add(Index *index, const char *path) {
     uint8_t *data = malloc(st.st_size);
     if (!data) { fclose(f); return -1; }
 
-    fread(data, 1, st.st_size, f);
+    if (fread(data, 1, st.st_size, f) != (size_t)st.st_size) {
+    free(data);
+    fclose(f);
+    return -1;
+}
     fclose(f);
 
     // Write blob to object store
@@ -238,7 +253,7 @@ int index_add(Index *index, const char *path) {
     }
 
     existing->mode     = get_file_mode(path);
-    existing->id       = id;
+    existing->hash       = id;
     existing->mtime_sec = (long)st.st_mtime;
     existing->size     = (size_t)st.st_size;
     strncpy(existing->path, path, sizeof(existing->path) - 1);
