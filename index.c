@@ -230,6 +230,19 @@ int index_add(Index *index, const char *path) {
     }
     free(data);
 
-    (void)index; // update logic in next commit
-    return -1;
+    // Update or insert the index entry
+    IndexEntry *existing = index_find(index, path);
+    if (!existing) {
+        if (index->count >= MAX_INDEX_ENTRIES) return -1;
+        existing = &index->entries[index->count++];
+    }
+
+    existing->mode     = get_file_mode(path);
+    existing->id       = id;
+    existing->mtime_sec = (long)st.st_mtime;
+    existing->size     = (size_t)st.st_size;
+    strncpy(existing->path, path, sizeof(existing->path) - 1);
+    existing->path[sizeof(existing->path) - 1] = '\0';
+
+    return index_save(index);
 }
