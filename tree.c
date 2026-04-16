@@ -19,6 +19,18 @@
 #include "index.h"
 #include "object.h"
 
+int write_tree_level(IndexEntry *entries, int count, ObjectID *out_id) {
+    Tree tree;
+    tree.count = 0;
+
+    // for now just initialize
+    (void)entries;
+    (void)count;
+    (void)out_id;
+
+    return 0;
+}
+
 int tree_from_index(ObjectID *id_out) {
     Index index;
 
