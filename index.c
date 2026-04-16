@@ -138,9 +138,22 @@ int index_load(Index *index) {
     index->count = 0;
 
     FILE *f = fopen(".pes/index", "r");
-    if (!f) {
-        // File doesn't exist yet — empty index is not an error
-        return 0;
+    if (!f) return 0;  // no index yet = empty, not an error
+
+    char hex[65];
+    while (index->count < MAX_INDEX_ENTRIES) {
+        IndexEntry *e = &index->entries[index->count];
+        int ret = fscanf(f, "%o %64s %ld %zu %255s",
+                         &e->mode,
+                         hex,
+                         &e->mtime_sec,
+                         &e->size,
+                         e->path);
+        if (ret == EOF) break;
+        if (ret != 5) { fclose(f); return -1; }
+
+        if (hex_to_hash(hex, &e->id) != 0) { fclose(f); return -1; }
+        index->count++;
     }
 
     fclose(f);
