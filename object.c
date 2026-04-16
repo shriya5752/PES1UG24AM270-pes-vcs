@@ -115,6 +115,25 @@ int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out
         // 4. Compute hash of full object
     compute_hash(buffer, total_len, id_out);
 
+        // 5. Deduplication check
+    if (object_exists(id_out)) {
+        free(buffer);
+        return 0;
+    }
+
+    // 6. Get object path
+    char path[512];
+    object_path(id_out, path, sizeof(path));
+
+    // 7. Create shard directory
+    char dir[512];
+    strncpy(dir, path, sizeof(dir));
+    char *slash = strrchr(dir, '/');
+    if (slash) {
+        *slash = '\0';
+        mkdir(dir, 0755);
+    }
+
     // TEMP return 
     free(buffer);
     return 0;
