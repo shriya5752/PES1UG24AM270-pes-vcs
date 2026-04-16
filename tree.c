@@ -25,17 +25,61 @@ int write_tree_level(IndexEntry *entries, int count, ObjectID *out_id) {
     tree.count = 0;
 
     for (int i = 0; i < count; i++) {
-        const char *path = entries[i].path;
+    const char *path = entries[i].path;
 
-        // only root-level files (no '/')
-        if (strchr(path, '/') == NULL) {
+    const char *slash = strchr(path, '/');
+
+    // CASE 1: FILE (no '/')
+    if (slash == NULL) {
+        TreeEntry *e = &tree.entries[tree.count++];
+
+        e->mode = entries[i].mode;
+        strcpy(e->name, path);
+        e->hash = entries[i].hash;
+    }
+
+    // CASE 2: DIRECTORY
+    else {
+        char dirname[256];
+        int len = slash - path;
+
+        strncpy(dirname, path, len);
+        dirname[len] = '\0';
+
+        // check if already added
+        int exists = 0;
+        for (int j = 0; j < tree.count; j++) {
+            if (strcmp(tree.entries[j].name, dirname) == 0) {
+                exists = 1;
+                break;
+            }
+        }
+
+        if (!exists) {
+            IndexEntry sub_entries[100];
+            int sub_count = 0;
+
+            for (int k = 0; k < count; k++) {
+                if (strncmp(entries[k].path, dirname, len) == 0 &&
+                    entries[k].path[len] == '/') {
+
+                    sub_entries[sub_count] = entries[k];
+                    sub_entries[sub_count].path += len + 1; // trim "src/"
+                    sub_count++;
+                }
+            }
+
+            ObjectID sub_id;
+            if (write_tree_level(sub_entries, sub_count, &sub_id) != 0)
+                return -1;
+
             TreeEntry *e = &tree.entries[tree.count++];
-
-            e->mode = entries[i].mode;
-            strcpy(e->name, path);
-            e->hash = entries[i].hash;
+            e->mode = MODE_DIR;
+            strcpy(e->name, dirname);
+            e->hash = sub_id;
         }
     }
+}
 
     void *data;
     size_t len;
