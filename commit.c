@@ -306,3 +306,5 @@ int commit_create(const char *message, ObjectID *commit_id_out) {
     
     return 0;
 }
+// Phase 4: Head management functions - head_read and head_update
+// These functions handle branch references with atomic updates
