@@ -16,6 +16,22 @@
 #include <dirent.h>
 #include <sys/stat.h>
 
+#include "index.h"
+#include "object.h"
+
+int tree_from_index(ObjectID *id_out) {
+    Index index;
+
+    if (index_load(&index) != 0) {
+        return -1;
+    }
+
+    // temporary return
+    (void)id_out;
+    return 0;
+}
+
+
 // ─── Mode Constants ─────────────────────────────────────────────────────────
 
 #define MODE_FILE      0100644
