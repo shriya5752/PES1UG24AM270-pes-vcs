@@ -308,7 +308,6 @@ int commit_create(const char *message, ObjectID *commit_id_out) {
 }
 // Phase 4: Head management functions - head_read and head_update
 // These functions handle branch references with atomic updates
-git add commit.c
 
 // Improved error handling for commit_create
 // Added validation for empty index and tree creation failures
