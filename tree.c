@@ -19,18 +19,34 @@
 #include "index.h"
 #include "object.h"
 
+
 int write_tree_level(IndexEntry *entries, int count, ObjectID *out_id) {
     Tree tree;
     tree.count = 0;
 
-    // for now just initialize
-    (void)entries;
-    (void)count;
-    (void)out_id;
+    for (int i = 0; i < count; i++) {
+        const char *path = entries[i].path;
 
+        // only root-level files (no '/')
+        if (strchr(path, '/') == NULL) {
+            TreeEntry *e = &tree.entries[tree.count++];
+
+            e->mode = entries[i].mode;
+            strcpy(e->name, path);
+            e->hash = entries[i].hash;
+        }
+    }
+
+    void *data;
+    size_t len;
+
+    if (tree_serialize(&tree, &data, &len) != 0) return -1;
+
+    if (object_write(OBJ_TREE, data, len, out_id) != 0) return -1;
+
+    free(data);
     return 0;
 }
-
 int tree_from_index(ObjectID *id_out) {
     Index index;
 
