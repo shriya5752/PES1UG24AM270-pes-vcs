@@ -312,3 +312,12 @@ git add commit.c
 
 // Improved error handling for commit_create
 // Added validation for empty index and tree creation failures
+
+// Phase 4: Added helper function for commit message validation
+static int validate_commit_message(const char *message) {
+    if (!message || strlen(message) == 0) {
+        fprintf(stderr, "error: commit message cannot be empty\n");
+        return -1;
+    }
+    return 0;
+}
